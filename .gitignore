@@ -1,0 +1,20 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Large datasets (>100MB exceeds GitHub hard limit)
+data/*.csv
+!data/.gitkeep
+
+# macOS metadata
+.DS_Store
+
+# Temporary files
+*.log
