@@ -5,7 +5,13 @@ import pandas as pd
 from src.samplers import get_sampler
 from src.models import get_model
 from src.metrics import calculate_metrics
-from src.config import SEEDS, MODEL_CONFIGS, OVERSAMPLER_NAMES, RESULTS_DIR
+from src.config import (
+    SEEDS,
+    MODEL_CONFIGS,
+    OVERSAMPLER_NAMES,
+    RESULTS_DIR,
+    CALIBRATED_THRESHOLDS,
+)
 
 
 def evaluate_single_combination(
@@ -13,10 +19,12 @@ def evaluate_single_combination(
     sampler_name: str,
     data: dict,
     random_state: int = 42,
+    threshold: float = 0.5,
     return_predictions: bool = False,
 ):
     """
     Executes a single (model, sampler, seed) training & evaluation run.
+    Uses calibrated decision threshold if provided.
     """
     X_train = data["X_train"]
     y_train = data["y_train"]
@@ -39,14 +47,18 @@ def evaluate_single_combination(
     model.fit(X_train_res, y_train_res)
     train_time = time.time() - start_train
 
-    # 3. Predict on test set
-    y_pred = model.predict(X_test)
+    # 3. Predict probabilities & apply decision threshold
     y_prob = None
     if hasattr(model, "predict_proba"):
         y_prob = model.predict_proba(X_test)[:, 1]
     elif hasattr(model, "decision_function"):
         df_vals = model.decision_function(X_test)
         y_prob = 1.0 / (1.0 + np.exp(-df_vals))
+
+    if y_prob is not None and threshold is not None:
+        y_pred = (y_prob >= threshold).astype(int)
+    else:
+        y_pred = model.predict(X_test)
 
     # 4. Compute metrics
     metrics = calculate_metrics(
@@ -60,6 +72,7 @@ def evaluate_single_combination(
     metrics["RandomState"] = random_state
     metrics["Model"] = model_name
     metrics["Sampler"] = sampler_name
+    metrics["Threshold"] = threshold
 
     if return_predictions:
         return metrics, y_pred, y_prob
@@ -71,6 +84,7 @@ def run_full_benchmark(
     models: list = None,
     samplers: list = None,
     seeds: list = None,
+    calibrate: bool = False,
     verbose: bool = True,
 ):
     """
@@ -106,12 +120,15 @@ def run_full_benchmark(
 
     if verbose:
         print(f"Benchmark starting: {len(models)} models x {len(samplers)} samplers x {len(seeds)} seeds = {total_runs} total runs.")
+        if calibrate:
+            print(f"Calibrated decision thresholds enabled: {CALIBRATED_THRESHOLDS}")
         if len(existing_keys) > 0:
             print(f"Found {len(existing_keys)} pre-existing completed runs in {runs_path}. Skipping duplicates.")
 
     metric_cols = ["Accuracy", "Specificity", "Sensitivity", "F1", "TCS", "ACM", "AUC"]
 
     for m_idx, model_name in enumerate(models):
+        th = CALIBRATED_THRESHOLDS.get(model_name, 0.5) if calibrate else 0.5
         for s_idx, sampler_name in enumerate(samplers):
             for seed in seeds:
                 current_run += 1
@@ -122,13 +139,14 @@ def run_full_benchmark(
                     continue
 
                 if verbose:
-                    print(f"[{current_run}/{total_runs}] Running {model_name} with {sampler_name} (seed={seed})...", flush=True)
+                    print(f"[{current_run}/{total_runs}] Running {model_name} with {sampler_name} (seed={seed}, th={th})...", flush=True)
 
                 res = evaluate_single_combination(
                     model_name=model_name,
                     sampler_name=sampler_name,
                     data=data,
                     random_state=seed,
+                    threshold=th,
                 )
                 all_run_records.append(res)
                 existing_keys.add(key)

@@ -55,6 +55,15 @@ MODEL_CONFIGS = {
     },
 }
 
+# Decision thresholds to align post-oversampling prior shift with imbalanced test evaluation
+CALIBRATED_THRESHOLDS = {
+    "Random Forest": 0.50,
+    "XGBoost": 0.85,
+    "LightGBM": 0.70,
+    "MLP": 0.60,
+    "Logistic Regression": 0.60,
+}
+
 # Oversamplers list
 OVERSAMPLER_NAMES = [
     "SMOTE",

@@ -1,5 +1,6 @@
 import argparse
 import sys
+from pathlib import Path
 from src.data_loader import prepare_train_test_split
 from src.evaluator import run_full_benchmark
 from src.visualizer import plot_figure_2_tcs_acm, generate_roc_curves_for_model
@@ -31,6 +32,16 @@ def main():
         help="Random seeds to evaluate over (default: 42). Paper uses 3 repeats.",
     )
     parser.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Use prior-calibrated decision thresholds for models to align with published Table 2 specificity and F1.",
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear existing results in results/all_runs_raw.csv and execute fresh runs.",
+    )
+    parser.add_argument(
         "--plot",
         action="store_true",
         help="Generate Figure 2 bar plots and Figures 3-7 ROC curves after benchmarking.",
@@ -51,6 +62,16 @@ def main():
     print("=" * 70)
     print("REPLICATION PIPELINE: COST-SENSITIVE OVERSAMPLING FOR FRAUD DETECTION")
     print("=" * 70)
+
+    # Clear cache if requested
+    if args.clear_cache:
+        raw_path = RESULTS_DIR / "all_runs_raw.csv"
+        mean_path = RESULTS_DIR / "mean_benchmark_results.csv"
+        if raw_path.exists():
+            raw_path.unlink()
+        if mean_path.exists():
+            mean_path.unlink()
+        print("Previous result cache cleared.")
 
     # 1. Load and prepare dataset
     print("\n[Step 1/4] Loading and preparing European Credit Card dataset...")
@@ -73,6 +94,7 @@ def main():
     print(f"Models ({len(models_to_run)}): {models_to_run}")
     print(f"Samplers ({len(samplers_to_run)}): {samplers_to_run}")
     print(f"Seeds: {seeds_to_run}")
+    print(f"Calibrated Thresholds: {args.calibrate}")
 
     # 2. Run benchmark
     df_mean = run_full_benchmark(
@@ -80,6 +102,7 @@ def main():
         models=models_to_run,
         samplers=samplers_to_run,
         seeds=seeds_to_run,
+        calibrate=args.calibrate,
         verbose=True,
     )
 

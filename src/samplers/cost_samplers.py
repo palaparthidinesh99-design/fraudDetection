@@ -95,9 +95,8 @@ class CostSensitiveSMOTE(BaseOversampler):
 class CostSensitiveADASYN(BaseOversampler):
     """
     Cost-Sensitive ADASYN:
-    Paper Section IV: 'For ADASYN, rather than distributing synthetic samples
-    according to local learning difficulty, we assign them according to cost,
-    using w_i for each minority instance.'
+    Weights minority sample generation by combining transaction amount (cost)
+    with local learning difficulty (ratio of majority neighbors among k-NN).
     """
 
     def __init__(self, random_state=42, n_neighbors=5):
@@ -105,11 +104,63 @@ class CostSensitiveADASYN(BaseOversampler):
         self.n_neighbors = n_neighbors
 
     def fit_resample(self, X, y, amounts=None):
-        cs_smote = CostSensitiveSMOTE(
-            random_state=self.random_state,
-            k_neighbors=self.n_neighbors,
-        )
-        return cs_smote.fit_resample(X, y, amounts=amounts)
+        rng = np.random.RandomState(self.random_state)
+
+        X_maj = X[y == 0]
+        X_min = X[y == 1]
+        n_maj = len(X_maj)
+        n_min = len(X_min)
+
+        if n_min >= n_maj:
+            return X.copy(), y.copy()
+
+        # Step 1: Compute difficulty score ri (ratio of majority neighbors in X)
+        k = min(self.n_neighbors, len(X) - 1)
+        nn_all = NearestNeighbors(n_neighbors=k + 1, metric="euclidean", n_jobs=-1)
+        nn_all.fit(X)
+        all_indices = nn_all.kneighbors(X_min, return_distance=False)[:, 1:]
+        ri = np.sum(y[all_indices] == 0, axis=1) / float(k)
+
+        # Step 2: Combine difficulty with instance cost
+        if amounts is not None:
+            amounts_min = amounts[y == 1]
+            costs = np.maximum(amounts_min, 0.01)
+        else:
+            costs = np.ones(n_min, dtype=float)
+
+        weights = costs * (ri + 0.01)
+        weights = weights / weights.sum()
+
+        total_synthetic = n_maj - n_min
+        allocations = allocate_samples(weights, total_synthetic)
+
+        # Step 3: Interpolate with k-NN in minority class
+        k_min = min(self.n_neighbors, n_min - 1)
+        nn_min = NearestNeighbors(n_neighbors=k_min + 1, metric="euclidean", n_jobs=-1)
+        nn_min.fit(X_min)
+        min_indices = nn_min.kneighbors(X_min, return_distance=False)[:, 1:]
+
+        synthetic_samples = []
+        for i in range(n_min):
+            n_samples = allocations[i]
+            if n_samples == 0:
+                continue
+
+            neighbor_choices = rng.choice(min_indices[i], size=n_samples, replace=True)
+            lambdas = rng.uniform(0.0, 1.0, size=(n_samples, 1))
+            diffs = X_min[neighbor_choices] - X_min[i]
+            syn = X_min[i] + lambdas * diffs
+            synthetic_samples.append(syn)
+
+        if len(synthetic_samples) > 0:
+            X_syn = np.vstack(synthetic_samples)
+            y_syn = np.ones(len(X_syn), dtype=int)
+            X_resampled = np.vstack([X, X_syn])
+            y_resampled = np.concatenate([y, y_syn])
+        else:
+            X_resampled, y_resampled = X.copy(), y.copy()
+
+        return X_resampled, y_resampled
 
 
 class CostSensitiveBorderlineSMOTE(BaseOversampler):
