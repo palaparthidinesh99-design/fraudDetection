@@ -86,7 +86,7 @@ PAPER_TABLE2_BENCHMARKS = {
     ("Random Forest", "Cost-sensitive ADASYN"): {"Accuracy": 0.999, "Specificity": 0.9999, "Sensitivity": 0.736, "F1": 0.838, "TCS": 11597.06, "ACM": 183.76},
     ("Random Forest", "Borderline-SMOTE"): {"Accuracy": 0.999, "Specificity": 0.9998, "Sensitivity": 0.777, "F1": 0.833, "TCS": 10501.84, "ACM": 191.81},
     ("Random Forest", "Cost-sensitive Borderline-SMOTE"): {"Accuracy": 0.999, "Specificity": 0.9999, "Sensitivity": 0.743, "F1": 0.846, "TCS": 12594.43, "ACM": 106.34},
-    ("Random Forest", "SMOTE-ENN"): {"Accuracy": 0.999, "Specificity": 0.9996, "Sensitivity": 0.811, "F1": 0.805, "TCS": 11465.27, "ACM": 191.81},
+    ("Random Forest", "SMOTE-ENN"): {"Accuracy": 0.999, "Specificity": 0.9996, "Sensitivity": 0.811, "F1": 0.805, "TCS": 10181.64, "ACM": 179.32},
     ("Random Forest", "Cost-sensitive SMOTE-ENN"): {"Accuracy": 0.999, "Specificity": 0.9998, "Sensitivity": 0.757, "F1": 0.815, "TCS": 11465.27, "ACM": 196.22},
     ("Random Forest", "SMOTE-Tomek"): {"Accuracy": 0.999, "Specificity": 0.9998, "Sensitivity": 0.804, "F1": 0.835, "TCS": 12332.56, "ACM": 148.88},
     ("Random Forest", "Cost-sensitive SMOTE-Tomek"): {"Accuracy": 0.999, "Specificity": 0.9999, "Sensitivity": 0.750, "F1": 0.841, "TCS": 9941.71, "ACM": 223.22},

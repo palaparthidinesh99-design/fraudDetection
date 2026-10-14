@@ -118,14 +118,13 @@ def evaluate_single_combination(
         df_vals = model.decision_function(X_test)
         y_prob = 1.0 / (1.0 + np.exp(-df_vals))
 
-    # 4. Determine threshold — O(n log n) vectorised calibration
-    if y_prob is not None:
-        if threshold is None:
-            threshold = _vectorised_threshold_search(y_test, y_prob, target_sensitivity)
+    # 4. Determine predictions and threshold (standard model.predict as specified in paper)
+    if threshold is not None and y_prob is not None:
         y_pred = (y_prob >= threshold).astype(int)
+        applied_threshold = float(threshold)
     else:
         y_pred = model.predict(X_test)
-        threshold = None
+        applied_threshold = 0.50
 
     # 5. Compute metrics
     metrics = calculate_metrics(
@@ -139,7 +138,7 @@ def evaluate_single_combination(
     metrics["RandomState"] = random_state
     metrics["Model"] = model_name
     metrics["Sampler"] = sampler_name
-    metrics["Threshold"] = threshold
+    metrics["Threshold"] = applied_threshold
 
     if return_predictions:
         return metrics, y_pred, y_prob

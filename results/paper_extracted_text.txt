@@ -1,0 +1,848 @@
+=== PAGE 1 ===
+Received 30 October 2025, accepted 21 November 2025, date of publication 25 November 2025,
+date of current version 4 December 2025.
+Digital Object Identifier 10.1 109/ACCESS.2025.3637132
+Performance Analysis of Cost-Sensitive
+Oversampling Mechanisms for Credit
+Card Fraud Detection
+EMMANUEL ILEBERI
+ AND YANXIA SUN
+ , (Senior Member, IEEE)
+Department of Electrical and Electronic Engineering Science, University of Johannesburg, Johannesburg 2006, South Africa
+Corresponding author: Emmanuel Ileberi (emmanuelileberi@gmail.com)
+This work was supported in part by South African National Research Foundation under Grant 141951, Grant 137951, and Grant
+AJCR230704126719120106.
+ABSTRACT Credit card fraud detection presents a persistent challenge due to severe class imbalance and
+the high costs associated with undetected fraudulent transactions. While oversampling techniques such
+as Synthetic Minority Oversampling Technique (SMOTE) and Adaptive Synthetic Sampling Approach
+for Imbalanced Learning (ADASYN) have improved minority class detection, most methods are cost-
+agnostic and do not account for the financial impact of individual misclassifications. This paper proposes a
+comprehensive framework for cost-sensitive oversampling, wherein the probability of generating synthetic
+minority samples is proportional to the transaction amount, thereby prioritizing high-impact fraud cases.
+We systematically evaluate standard and cost-sensitive variants of several popular oversampling methods—
+including SMOTE, ADASYN, Borderline-SMOTE, SMOTE-ENN, and SMOTE-Tomek—across five
+widely used machine learning classifiers Random Forest, XGBoost, LightGBM, multi-layer perceptron, and
+logistic regression. Experiments conducted on a real-world credit card dataset demonstrate that cost-sensitive
+oversampling substantially increases total cost savings and reduces the average cost per misclassification,
+with especially marked improvements for neural and linear models. The findings offer practical guidance
+for deploying cost-sensitive solutions in imbalanced, high-stakes financial applications.
+INDEX TERMS Credit card fraud detection, cost-sensitive learning, imbalanced classification, oversam-
+pling, SMOTE, ADASYN, total cost savings.
+I. INTRODUCTION
+The rapid expansion of digital financial services and the
+ubiquity of electronic transactions have made credit cards
+indispensable in modern commerce [1], [2], [3]. However,
+this growth has been paralleled by increasingly sophisticated
+fraudulent schemes, resulting in significant financial losses
+and undermining consumer trust. Global fraud losses are
+estimated to reach billions of dollars annually, imposing
+heavy burdens on both financial institutions and individual
+customers [4]. Consequently, there is a persistent demand
+for highly effective and adaptive fraud detection systems
+The associate editor coordinating the review of this manuscript and
+approving it for publication was Bang L. H. Nguyen
+ .
+capable of keeping pace with ever-evolving attack vectors,
+operational constraints, and regulatory requirements.
+In recent years, credit card fraud has emerged as a
+significant and costly issue for financial institutions, with
+fraud rates estimated at around 0.05% of all transactions [5],
+[6]. As fraud schemes evolve, the challenge lies in accurately
+detecting fraudulent transactions amidst severe class imbal-
+ance, where the minority (fraud) class is both rare and costly
+to misclassify.
+Oversampling methods such as Synthetic Minority Over-
+sampling Technique (SMOTE) [7], Adaptive Synthetic
+Sampling Approach for Imbalanced Learning (ADASYN)
+[8], and their variants have been widely used to mitigate
+class imbalance. However, most methods are cost-agnostic—
+they treat all fraud instances equally, regardless of their
+VOLUME 13, 2025
+
+ 2025 The Authors. This work is licensed under a Creative Commons Attribution 4.0 License.
+For more information, see https://creativecommons.org/licenses/by/4.0/ 202655
+=== PAGE 2 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+associated monetary value or risk. Notable exceptions include
+instance-dependent cost-sensitive methods [9], and the
+example-dependent cost-sensitive SMOTE integrated with
+Bayes minimum risk [10], both of which have demonstrated
+improved savings in real-world fraud scenarios.
+Despite these advances, there remains a gap in systemat-
+ically comparing cost-sensitive oversampling techniques—
+such as cost-sensitive versions of SMOTE, ADASYN,
+Borderline-SMOTE, and Synthetic Minority Over-sampling
+Technique and Edited Nearest Neighbors (SMOTE-ENN)—
+against their standard counterparts across modern machine
+learning models like Random Forest, Extreme Gradient
+Boosting (XGBoost), Light Gradient Boosting Machine
+(LightGBM), multilayer perceptron (MLP), and Logistic
+Regression. Such a comprehensive study is essential for
+clarifying the trade-offs in detection performance, cost
+reduction, and computational complexity, as well as for
+providing actionable guidance to practitioners facing real-
+world fraud detection challenges.
+The objective of this study is to develop and rigorously
+evaluate cost-sensitive adaptations of leading oversam-
+pling methods for imbalanced credit card fraud detection.
+By directly integrating misclassification costs—derived from
+transaction amounts—into the synthetic sample generation
+process, we seek to improve the identification of high-
+impact fraud cases and maximize financial savings. We aim
+to conduct a comprehensive comparison with standard,
+cost-agnostic oversampling across multiple state-of-the-art
+machine learning classifiers, assessing performance using
+both conventional classification metrics (such as accuracy,
+recall, specificity, and F1-score) and cost-based evaluation
+criteria (such as total cost savings and average cost per
+misclassification).
+Our contributions are summarized as follows
+• We introduce a general cost-sensitive oversampling
+framework in which the number of synthetic minority
+samples generated for each fraud instance is explicitly
+proportional to its normalized misclassification cost.
+This unified approach can be flexibly applied to a broad
+family of oversampling algorithms, thereby prioritizing
+high-value fraud cases during sample generation.
+• We conduct a comprehensive evaluation of both standard
+and cost-sensitive variants of popular oversampling
+methods across multiple state-of-the-art ML classifiers.
+• We provide extensive empirical evidence that cost-
+sensitive oversampling substantially improves business-
+relevant outcomes, such as total cost savings and average
+cost per misclassification.
+Summarily, our primary contribution is a general and
+flexible cost-sensitive oversampling framework that can be
+applied to a broad family of existing algorithms (e.g.,
+SMOTE, ADASYN, Borderline-SMOTE), rather than being
+a single, fixed method. This framework directly integrates
+instance-dependent costs into the sample generation prob-
+ability, a approach distinct from post-hoc cost-sensitive
+learning or algorithm-specific modifications. We demon-
+strate that this method systematically surpasses standard,
+cost-agnostic oversampling by prioritizing high-impact fraud
+cases, leading to superior financial outcomes across multiple
+state-of-the-art classifiers.
+The remainder of this paper is organized as follows.
+Section II reviews related work on cost-sensitive learning
+and oversampling methods for imbalanced data. Section III
+presents the materials and methods, including dataset details,
+oversampling techniques, and machine learning algorithms
+used in the study. Section IV described the proposed cost-
+sensitive oversampling framework. Section V details the
+experimental setup and the empirical results and analysis,
+and the conclusions and directions for future research are
+provided in Section VI.
+II. RELATED WORKS
+The constraints posed by class imbalance in credit card fraud
+detection have prompted extensive research on resampling
+and cost-sensitive methods. Early work identified that tradi-
+tional metrics like accuracy are inadequate in such settings,
+motivating a shift towards cost-aware evaluation [11].
+A. OVERSAMPLING TECHNIQUES FOR IMBALANCED
+FRAUD DATA
+Synthetic Minority Over-sampling Technique (SMOTE)
+remains the most widely adopted method for generat-
+ing realistic synthetic minority examples [7]. Extensions
+such as Borderline-SMOTE and ADASYN improve upon
+SMOTE by focusing on hard-to-classify or borderline
+samples [8]. Hybrid sampling techniques, e.g., SMOTE
+combined with Tomek Links (SMOTE–Tomek) or Edited
+Nearest Neighbours (SMOTE–ENN), have demonstrated
+improved classifier performance by eliminating noisy or
+redundant instances [12], and specifically in fraud-detection
+contexts [13]. Moreover, Fonseca et al. [14] introduced k-
+means SMOTE, which leverages clustering to enhance
+sample diversity, while Dal Pozzolo et al. [15] conducted
+a comprehensive evaluation of resampling methods on real
+credit card fraud data, highlighting the practical relevance of
+these techniques.
+Generative Adversarial Networks (GANs) have also
+been explored for fraud oversampling. Conditional GAN-
+based methods effectively generate synthetic fraudulent
+transactions, enhancing detector performance over SMOTE
+alone [16], [17]. For instance, Du et al. [18] proposed
+AE-XGB-SMOTE-CGAN, a two-stage pipeline combining
+SMOTE and GANs, yielding significant improvements
+in both AUC and MCC. In addition, Fiore et al. [19]
+showed that Generative Adversarial Networks (GAN)-based
+oversampling can also provide competitive gains, further
+enriching the toolkit for data-level interventions.
+B. COST-SENSITIVE LEARNING IN FRAUD DETECTION
+Cost-sensitive learning addresses imbalanced classification
+by embedding misclassification costs into either sampling
+202656 VOLUME 13, 2025
+=== PAGE 3 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+or algorithm-level frameworks. Instance-dependent methods
+customize weights per example; Höppner et al. demonstrated
+improved transfer-fraud detection using sample-level cost
+adjustments [9]. Example-dependent cost-sensitive SMOTE
+integrated with Bayes Minimum Risk further showed efficacy
+in real fraud and credit scoring applications [10]. Additional
+algorithm-level approaches include cost-sensitive decision
+trees, boosted ensembles, and modified SVMs. For example,
+cost-sensitive weak learners and bagged random forests have
+effectively reduced misclassification cost [20], while Elshaar
+and Sadaoui [21] combined cost-sensitive semi-supervised
+learning for auction fraud detection.
+Furthermore, Bahnsen et al. [22] developed an example-
+dependent cost-sensitive logistic regression, demonstrating
+that directly optimizing for financial cost leads to improved
+business outcomes in fraud detection. More recently,
+Olowookere and Adewale [23] proposed an active learning
+framework incorporating cost-sensitive uncertainty and meta-
+learning ensemble for credit card fraud detection, underlining
+the increasing attention to economic considerations in model
+design.
+Despite many promising techniques, a comprehensive
+comparison of cost-sensitive variants of oversampling
+methods across several modern machine learning models
+is missing. Most prior studies focus on single algo-
+rithms or individual oversampling techniques; few evaluate
+cost-sensitive forms of Borderline-SMOTE, SMOTE-ENN,
+SMOTE-Tomek, GAN-based oversampling, and Majority-
+Weighted Minority Oversampling in a unified framework.
+Furthermore, evaluation often relies solely on statistical
+metrics (e.g., F1, AUC) instead of incorporating cost-based
+metrics such as monetary savings or net cost [24], [25].
+Our work aims to fill these gaps by systematically
+evaluating cost-sensitive adaptations of key oversampling
+strategies in conjunction with multiple state-of-the-art clas-
+sifiers, using both conventional and cost-sensitive evaluation
+metrics, and by providing practical insights for their real-
+world deployment in credit card fraud detection. It is
+important to distinguish data-level approaches like ours
+from algorithm-level cost-sensitive methods. The latter
+embed costs directly into the classifier’s loss function [21]
+or decision threshold [10]. While highly effective, these
+approaches are often model-specific. In contrast, our data-
+level framework is classifier-agnostic, allowing any standard
+ML model to benefit from cost-sensitive learning without
+internal modification, thus offering greater flexibility and
+ease of implementation.
+III. MATERIALS AND METHODS
+This section details the methodologies employed for
+addressing class imbalance in credit card fraud detection.
+We describe the suite of oversampling techniques adapted
+for this study, each aimed at improving the representation
+of the minority (fraudulent) class in the training data.
+Mathematical formulations are provided to clarify the
+mechanisms underlying each approach. The subsequent
+subsections outline the machine learning classifiers utilized,
+followed by the performance evaluation metrics.
+A. DATASET DESCRIPTION
+This study uses the European credit card fraud dataset,
+a widely recognized benchmark introduced by Dal
+Pozzolo et al. [26]. The dataset consists of 284,807 transac-
+tions recorded over two days in September 2013, of which
+only 492 are labeled as fraud. Each transaction is represented
+by 28 anonymized principal components (V1–V28), along
+with the original Amount (transaction value in Euros) and
+Time (elapsed seconds from the first transaction). The target
+label, Class, is binary 1 for fraudulent and 0 for legitimate
+transactions, yielding a highly imbalanced scenario typical of
+real-world fraud detection.
+B. OVERSAMPLING TECHNIQUES
+To address the class imbalance inherent in credit card fraud
+detection, we employ several widely used and state-of-the-art
+oversampling strategies
+1) SMOTE
+SMOTE generates synthetic minority class instances by
+interpolating between each minority sample xi ∈ Dmin and
+one of its k-nearest neighbors xi,NN
+xnew = xi + λ(xi,NN − xi), λ ∼ U (0, 1) (1)
+where Dmin denotes the set of minority class samples, k is the
+number of nearest neighbors, and λ is a random variable from
+the uniform distribution [27].
+2) ADAPTIVE SYNTHETIC SAMPLING
+ADASYN builds on SMOTE but emphasizes generating
+synthetic data for minority instances that are difficult to
+classify [28]. For eachxi, the difficulty scoreri is calculated as
+the ratio of majority samples among its k-nearest neighbors.
+The number of synthetic samples for xi is
+gi = ri∑
+j rj
+· G (2)
+where G is the total number of synthetic samples required and
+gi is the number allocated to xi.
+3) BORDERLINE-SMOTE
+Borderline-SMOTE modifies the SMOTE approach by
+restricting interpolation (using the same formula as SMOTE)
+to minority samples near the class decision boundary—
+specifically, those with a high proportion of majority class
+neighbors [29]. The identification of such borderline samples
+is based on the neighborhood composition.
+4) SMOTE-ENN
+SMOTE-ENN combines SMOTE-generated samples with
+Edited Nearest Neighbors (ENN) cleaning. After applying
+SMOTE, for each sample x, the class label yx is compared to
+VOLUME 13, 2025 202657
+=== PAGE 4 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+those of its k nearest neighbors Nk (x) [30]. If the sample’s
+label disagrees with the majority of its neighbors, it is
+removed
+Remove x if majority
+(
+Nk (x)
+)
+̸= yx (3)
+5) SMOTE-TOMEK LINKS
+After applying SMOTE, the Tomek links algorithm serves
+as a data cleaning step to further improve class separability.
+A Tomek link exists between two samples (x i, xj) if they
+belong to opposite classes (y i ̸= yj) and are each other’s
+nearest neighbors; that is, xj = arg minx′ ∥xi − x′∥. Whenever
+such a link is identified, both xi and xj are removed from
+the dataset, thereby eliminating ambiguous boundary samples
+and reducing class overlap [31], [32].
+C. MACHINE LEARNING CLASSIFIERS
+We benchmark five widely used supervised learning models
+for credit card fraud detection. Each classifier is trained
+on datasets produced by both standard and cost-sensitive
+oversampling methods.
+1) RANDOM FOREST
+Random Forest is an ensemble method that constructs M
+decision trees, each trained on a bootstrapped sample of the
+data with random feature selection. For a feature vector x, the
+predicted class ˆy is given by majority voting
+ˆy = mode{hm(x)}Mm=1 (4)
+where hm(x) is the prediction of the m-th tree [33].
+2) XGBOOST
+XGBoost is a gradient-boosted decision tree algorithm, where
+trees are built sequentially to minimize a regularized objective
+function. For K trees, the final prediction is
+ˆy =
+K∑
+k=1
+fk (x), fk ∈ F (5)
+where F is the space of regression trees, and fk is the
+prediction of the k-th tree [34], [35].
+3) LIGHTGBM
+LightGBM is a boosting-based ensemble that, like XGBoost,
+uses additive trees. Its prediction function follows the same
+form as XGBoost, but it employs histogram-based split-
+finding and leaf-wise tree growth for efficiency [36].
+4) MULTI-LAYER PERCEPTRON
+MLP is a fully connected feedforward neural network.
+It consists of an input layer, one or more hidden layers, and an
+output layer. Each layer transforms its input through a linear
+mapping followed by a nonlinear activation function. Given
+an input vector x, the MLP computes a sequence of hidden
+representations as follows:
+h(0) = x, h(ℓ) = σ (W (ℓ)h(ℓ−1) + b(ℓ)) (6)
+where W (ℓ) and b(ℓ) denote the weights and biases of layer
+ℓ, and σ represents a nonlinear activation function such
+as ReLU or sigmoid. This transformation is applied for
+ℓ = 1, . . . ,L, where L is the total number of layers. The
+output of the final layer, h(L), is passed through a sigmoid
+or softmax function for binary or multi-class classification,
+respectively [37], [38], [39], [40].
+5) LOGISTIC REGRESSION
+Logistic Regression (LR) is a linear model for binary
+classification, modeling the probability of the positive class
+as
+P(y = 1 | x) = 11 + exp (−w T x − b) (7)
+where w is the vector of weights, b is the bias term, and x is
+the input feature vector [41].
+D. PERFORMANCE EVALUATION METRICS
+Model performance is assessed using a combination of
+traditional classification metrics and cost-sensitive measures,
+ensuring both statistical and practical significance are cap-
+tured.
+• Accuracy: The proportion of correctly classified
+instances
+Accuracy = TP + TNTP + FP + TN + FN (8)
+where TP, TN , FP, and FN denote true positives,
+true negatives, false positives, and false negatives,
+respectively [42].
+• Sensitivity: The proportion of actual positive (fraudu-
+lent) cases correctly identified [43].
+Sensitivity = TPTP + FN (9)
+• Specificity: The proportion of actual negative (legiti-
+mate) cases correctly identified [43].
+Specificity = TNTN + FP (10)
+• F1-Score The harmonic mean of precision and recall,
+balancing false positives and false negatives [33].
+F1 − Score = 2 × Precision × RecallPrecision + Recall (11)
+where Precision = TP/(TP + FP).
+• Total Cost Savings: Total Cost Savings (TCS) is the
+reduction in financial loss due to correctly detected
+fraudulent transactions, relative to a baseline with no
+detection
+TCS =
+∑
+i∈FNbaseline
+ai −
+∑
+j∈FNmodel
+aj (12)
+where ai denotes the transaction amount of the i-th
+missed fraud, and FNbaseline and FNmodel are the sets
+of false negatives under the baseline and the evaluated
+model, respectively.
+202658 VOLUME 13, 2025
+=== PAGE 5 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+• Average Cost per Misclassification: This is the average
+monetary cost associated with incorrect predictions
+ACM =
+∑
+i∈FN ai + NFP · cFP
+NFN + NFP
+(13)
+where NFN and NFP are the number of false negatives
+and false positives, respectively; cFP represents the cost
+assigned to a false positive, and ai is the amount of an
+undetected fraud.
+These metrics jointly provide a comprehensive view
+of model effectiveness, with cost-based measures directly
+reflecting practical business impact.
+IV. PROPOSED METHODOLOGY
+This section details the proposed cost-sensitive oversampling
+framework for credit card fraud detection. The central
+innovation is to integrate instance-level misclassification
+costs—derived, for example, from transaction amounts—
+directly into the oversampling process, ensuring that the
+most financially impactful fraud cases are more likely
+to be synthetically represented in the training set. The
+method operates entirely at the data level, maintaining full
+compatibility with a broad range of supervised machine
+learning classifiers.
+Algorithm 1 Cost-Sensitive Oversampling
+Input: Imbalanced dataset D = {(xi, yi, ci)}Ni=1;
+Oversampling ratio α;
+Oversampling technique (e.g., SMOTE,
+ADASYN)
+Output: Cost-sensitive resampled dataset D′
+1 Compute Smin = {iyi = 1} ; // Indices of
+minority (fraud) class
+2 Compute Smaj = {iyi = 0} ; // Indices of
+majority (legitimate) class
+3 foreach i ∈ Smin do
+4 Compute cost weight;
+wi = ci/∑j∈Smin cj;
+Compute number of synthetic samples;
+ni = α · wi · |Smaj|;
+for j = 1 to ni do
+5 Generate one synthetic sample for xi using
+chosen technique;
+Add synthetic sample to D′;
+6 end
+7 end
+8 Merge D′ with original data and return for training
+Traditional oversampling methods treat all fraud cases
+equally, regardless of the financial impact of individual trans-
+actions. However, in real-world credit card fraud detection,
+missing a high-value fraudulent transaction can result in
+disproportionately large losses compared to low-value cases.
+To address this, our method prioritizes the generation of
+synthetic samples for high-cost frauds, ensuring that the
+training set better reflects the economic risks present in
+operational environments.
+Given an imbalanced dataset D = {(xi, yi, ci)}Ni=1, where
+xi is a feature vector, yi is the binary class label, and ci
+is the misclassification cost, let Smin = {iyi = 1} be the
+set of indices corresponding to the minority (fraud) class.
+The majority class is denoted Smaj. The proposed approach
+modifies the sampling frequency for each minority instance
+based on its normalized cost
+wi = ci∑
+j∈Smin cj
+(14)
+For each xi in the minority class, the number of synthetic
+samples generated is
+ni = α · wi · |Smaj| (15)
+where α is the desired oversampling ratio. These synthetic
+samples are then generated using the underlying mechanism
+of SMOTE, ADASYN, or any other supported oversam-
+pling technique. For cost-sensitive ADASYN, the standard
+difficulty-based weighting is replaced by the cost-based wi
+defined above.
+FIGURE 1. Block diagram of the proposed cost-sensitive oversampling
+approach.
+This approach is generalizable to multiple oversampling
+paradigms. For ADASYN, rather than distributing synthetic
+samples according to local learning difficulty, we assign
+them according to cost, using wi for each minority instance.
+For all SMOTE-based variants, the neighbor selection
+and interpolation mechanisms remain unchanged, but the
+sampling frequency is cost-driven.
+VOLUME 13, 2025 202659
+=== PAGE 6 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+A. INTEGRATION WITH CLASSIFIERS
+The resulting cost-sensitive resampled dataset D′ is used to
+train any classifier of choice—Random Forest, XGBoost,
+LightGBM, MLP , and Logistic Regression in this study—
+without any modification to the original model or its loss
+function. This preserves modularity and ease of imple-
+mentation. Figure 1 presents a schematic overview of the
+proposed pipeline, starting from cost assignment, through
+cost-weighted oversampling, to downstream model training
+and evaluation. This modular architecture allows for seamless
+integration of various oversampling strategies and classifiers,
+ensuring adaptability across different fraud detection envi-
+ronments and supporting the goal of minimizing real-world
+financial losses.
+V. RESULTS AND DISCUSSION
+A. EXPERIMENTAL SETUP
+Experiments were conducted using the European credit card
+fraud dataset containing 284,807 transactions, with only
+492 labeled as fraudulent. All features were standardized,
+and the data was split 70/30 into training and test sets
+while maintaining class imbalance. For cost-sensitive over-
+sampling, each fraud instance’s misclassification cost was
+set to its transaction amount, and the cost of false positives
+was considered negligible. To ensure a fair and controlled
+comparison, all classifiers were trained using the same
+fixed set of hyperparameters, as detailed in Table 1, across
+all oversampling techniques. No further hyperparameter
+optimization was performed, allowing us to isolate the
+effect of the oversampling methods themselves and for
+reproducibility.
+The number of synthetic samples generated by each
+oversampler matched the number of majority class examples
+in the training set. To achieve a perfectly balanced training
+set, the oversampling ratio was set such that the total
+number of synthetic minority samples generated was equal
+to the number of majority class examples in the training
+subset. This means the target was to bring the minority
+class count to 100% of the majority class count, resulting
+in a 1:1 class ratio post-oversampling. Cost-sensitive variants
+reweighted sample generation based on transaction amount as
+described in Section IV. Model performance was evaluated
+by Accuracy, Specificity, Sensitivity, F1-Score, Total Cost
+Savings (TCS), Average Cost per Misclassification (ACM),
+and Area Under the ROC Curve (AUC). Each experiment
+was repeated three times and mean results are reported. The
+random state parameter was fixed across all experiments to
+ensure reproducibility of results, allowing identical data splits
+and consistent random initialization during oversampling and
+model training. This facilitates fair cross-model comparison.
+B. RESUL TS
+Table 2 presents a comprehensive comparison of the classi-
+fication performance for all models and oversampling tech-
+niques. Across the board, accuracy and specificity remained
+exceptionally high for every method and classifier, reflecting
+the dataset’s class imbalance and the ease with which legit-
+imate transactions are correctly identified. However, more
+telling differences emerged when focusing on sensitivity,
+F1-score, and especially the cost-sensitive metrics—total
+cost savings (TCS) and average cost per misclassification
+(ACM).
+A close inspection reveals that for Random Forest and
+XGBoost, cost-sensitive variants of Borderline-SMOTE and
+SMOTE-ENN improved the F1-score and led to some
+of the highest total cost savings, even when sensitivity
+was not always maximized. For example, in Random
+Forest, cost-sensitive Borderline-SMOTE produced both the
+highest F-measure and the lowest ACM, while the standard
+SMOTE-ENN had the highest sensitivity, demonstrating that
+maximizing recall does not always result in optimal cost
+efficiency. Similarly, in XGBoost, cost-sensitive SMOTE-
+ENN and standard SMOTE-ENN alternated in producing the
+best cost savings and sensitivity, respectively, highlighting
+that targeting high-value frauds offers distinct advantages for
+financial outcomes.
+LightGBM’s performance exhibited greater sensitivity
+to the oversampling method applied. While the highest
+sensitivity was achieved with standard SMOTE-Tomek,
+cost-sensitive SMOTE-ENN and ADASYN consistently
+produced higher F-measure and superior financial metrics.
+This pattern continued with the MLP , where cost-sensitive
+SMOTE-Tomek provided the best total cost savings and
+the lowest ACM, but cost-sensitive ADASYN achieved the
+top sensitivity. In both MLP and LightGBM, integrating
+cost information into the oversampling process resulted in
+models that more efficiently prioritized and detected high-
+value frauds.
+Interestingly, for Logistic Regression—a comparatively
+simple classifier—cost-sensitive oversampling variants deliv-
+ered substantial gains across all major metrics. Sensitivity
+reached 0.865 for all cost-sensitive methods, and total
+cost savings and ACM were also consistently highest and
+lowest, respectively, for these approaches. This indicates
+that even linear models, which may not capture complex
+data patterns as deeply as tree ensembles or neural net-
+works, can nonetheless benefit from cost-weighted sample
+generation when applied to highly imbalanced, cost-sensitive
+problems. For instance, Cost-sensitive SMOTE-ENN with
+XGBoost achieved a Total Cost Savings (TCS) of 12,980.10,
+which is an improvement over the standard SMOTE-
+ENN (TCS = 12,433.85) and provides a clear financial
+benefit.
+The ROC analysis, depicted in Figures 3–7, further
+illustrates these patterns. While AUC values were generally
+high for all models, cost-sensitive Borderline-SMOTE and
+SMOTE-ENN sometimes delivered modest but consistent
+improvements, particularly for LightGBM and MLP . These
+small but meaningful gains reinforce the business value of
+cost-sensitive approaches, which may not always yield the
+highest recall but result in better financial performance for
+the institution.
+202660 VOLUME 13, 2025
+=== PAGE 7 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+TABLE 1. Hyperparameter settings for all classifiers and oversampling procedures used in this study.
+TABLE 2. Performance comparison of oversampling methods and their cost-sensitive variants across different classifiers (best per metric in bold).
+For enhanced visual comparison, the results for key metrics
+from Table 2 are also presented as bar charts in Figure 2.
+These charts facilitate direct benchmarking of the cost-
+sensitive variants against their standard counterparts.
+C. DISCUSSION
+Taken together, these results provide compelling evidence
+that cost-sensitive oversampling mechanisms offer tangible
+benefits over traditional, cost-agnostic resampling in credit
+card fraud detection. Particularly in metrics aligned with real-
+world impact—such as total cost savings and average cost
+per misclassification—cost-sensitive methods that directly
+incorporate transaction value into the sample weighting
+process enable models to better prioritize high-impact frauds.
+It is important to note that no single method universally
+dominated all metrics or classifiers. In some cases, the highest
+VOLUME 13, 2025 202661
+=== PAGE 8 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+FIGURE 2. Plots of oversampling method versus TCS and ACM for all models.
+FIGURE 3. ROC curves for LightGBM with various oversampling methods.
+sensitivity was achieved with standard oversamplers, but
+the most cost-effective results were delivered by their cost-
+sensitive counterparts. This trade-off highlights the nuanced
+relationship between statistical and financial performance,
+emphasizing the need for practitioners to carefully select
+resampling strategies based on the specific deployment
+context and business objectives.
+Furthermore, these findings demonstrate that the benefit
+of cost-sensitive oversampling is not confined to complex
+FIGURE 4. ROC curves for logistic regression with various oversampling
+methods.
+models; even linear classifiers such as logistic regression
+saw marked improvements in both statistical and cost-
+based outcomes. The ROC and AUC analyses support these
+conclusions, showing that rebalancing the data for high-value
+frauds rarely impairs, and often modestly improves, model
+discrimination.
+Overall, our study shows the necessity of evaluating fraud
+detection solutions through a holistic lens that encompasses
+202662 VOLUME 13, 2025
+=== PAGE 9 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+FIGURE 5. ROC curves for MLP with various oversampling methods.
+FIGURE 6. ROC curves for random forest with various oversampling
+methods.
+FIGURE 7. ROC curves for XGBoost with various oversampling methods.
+both classical and cost-based metrics. Focusing exclusively
+on accuracy or AUC can mask significant differences in
+financial effectiveness. The proposed framework, adaptable
+to a wide variety of models and cost structures, offers a
+principled approach for practitioners aiming to reduce real-
+world losses in imbalanced, high-stakes domains.
+VI. CONCLUSION AND FUTURE WORK
+This study introduced and benchmarked a general frame-
+work for cost-sensitive oversampling in credit card fraud
+detection, rigorously comparing classical and modern tech-
+niques across several machine learning models. The results
+demonstrate that by integrating transaction-level costs into
+the resampling process, it is possible to achieve substan-
+tial gains in business-relevant outcomes—most notably,
+total cost savings and reduction in the average cost
+per misclassification—regardless of the underlying classi-
+fier. Cost-sensitive Borderline-SMOTE, SMOTE-ENN, and
+SMOTE-Tomek emerged as particularly effective, especially
+in neural and linear models.
+Future research should, in addition to an ablation study,
+investigate adaptive or dynamic cost matrices, the application
+of deep generative models, and extension to multiclass or
+streaming data scenarios. Most importantly, large-scale, real-
+time deployment of cost-sensitive oversampling frameworks
+in financial institutions will provide further validation of their
+practical utility and impact.
+Furthermore, the application of oversampling inherently
+increases the size of the training dataset, which can elevate
+computational demands during model training. This could
+be a limiting factor in real-time or resource-constrained
+environments. A promising direction for future work is to
+explore techniques that reduce this computational overhead.
+Inspired by methods used in other domains, such as optimiz-
+ing transform hop sizes in signal processing [44] or efficient
+input representation [45], future research could investigate
+strategic sub-sampling of the generated synthetic data or
+the development of more efficient, selective oversampling
+algorithms that maintain financial performance gains while
+minimizing added computational complexity.
+REFERENCES
+[1] S. R. Byrapu Reddy, P . Kanagala, P . Ravichandran, D. R. Pulimamidi,
+P . V . Sivarambabu, and N. S. A. Polireddi, ‘‘Effective fraud detection
+in e-commerce: Leveraging machine learning and big data analytics,’’
+Measurement: Sensors, vol. 33, Jun. 2024, Art. no. 101138.
+[2] A. Mutemi and F. Bacao, ‘‘E-commerce fraud detection based on machine
+learning techniques: Systematic literature review,’’ Big Data Mining
+Analytics, vol. 7, no. 2, pp. 419–444, Jun. 2024.
+[3] A. Panthakkan, D. Prajapati, N. Chaubey, R. Joshi, W. Mansoor, and H. Al-
+Ahmad, ‘‘Advancements in credit card fraud detection: A comprehensive
+evaluation of current approaches,’’ in Proc. Adv. Sci. Eng. Technol. Int.
+Conferences (ASET), Jun. 2024, pp. 1–6.
+[4] Y . Takefuji, ‘‘Case report on enormous economic losses caused by fraud
+from Japan to the world,’’ J. Econ. Criminology, vol. 1, Sep. 2023,
+Art. no. 100003.
+[5] S. Ganesh, D. Muralidharan, and M. Thiruvengadam, ‘‘Credit card fraud
+data analysis and prediction using machine learning algorithms,’’ Secur .
+Privacy, vol. 8, no. 3, p. 70043, May 2025.
+[6] M. Zhu, Y . Zhang, Y . Gong, C. Xu, and Y . Xiang, ‘‘Enhancing credit card
+fraud detection a neural network and SMOTE integrated approach,’’ 2024,
+arXiv:2405.00026.
+[7] A. X. Wang, V .-T. Le, H. N. Trung, and B. P . Nguyen, ‘‘Addressing
+imbalance in health data: Synthetic minority oversampling using deep
+learning,’’ Comput. Biol. Med., vol. 188, Apr. 2025, Art. no. 109830.
+[8] H. He, Y . Bai, E. A. Garcia, and S. Li, ‘‘ADASYN: Adaptive synthetic
+sampling approach for imbalanced learning,’’ in Proc. IEEE Int. Joint
+Conf. Neural Netw. (IEEE World Congr . Comput. Intelligence), Jun. 2008,
+pp. 1322–1328.
+[9] S. Höppner, B. Baesens, W. V erbeke, and T. V erdonck, ‘‘Instance-
+dependent cost-sensitive learning for detecting transfer fraud,’’ Eur . J.
+Oper . Res., vol. 297, no. 1, pp. 291–300, Feb. 2022.
+[10] D. Almhaithawi, A. Jafar, and M. Aljnidi, ‘‘Example-dependent cost-
+sensitive credit cards fraud detection using SMOTE and Bayes minimum
+risk,’’ Social Netw. Appl. Sci., vol. 2, no. 9, p. 1574, Sep. 2020.
+VOLUME 13, 2025 202663
+=== PAGE 10 ===
+E. Ileberi, Y. Sun: Performance Analysis of Cost-Sensitive Oversampling Mechanisms
+[11] S. Showalter and Z. Wu, ‘‘Minimizing the societal cost of credit card fraud
+with limited and imbalanced data,’’ 2019, arXiv:1909.01486.
+[12] G. Lemaître, F. Nogueira, and C. K. Aridas, ‘‘Imbalanced-learn: A Python
+toolbox to tackle the curse of imbalanced datasets in machine learning,’’ J.
+Mach. Learn. Res., vol. 18, no. 17, pp. 1–5, 2017.
+[13] A. Singh, R. K. Ranjan, and A. Tiwari, ‘‘Credit card fraud detection under
+extreme imbalanced data: A comparative study of data-level algorithms,’’
+J. Experim. Theor . Artif. Intell., vol. 34, no. 4, pp. 571–598, Jul. 2022.
+[14] J. Fonseca, G. Douzas, and F. Bacao, ‘‘Improving imbalanced land
+cover classification with K-means SMOTE: Detecting and oversampling
+distinctive minority spectral signatures,’’ Information, vol. 12, no. 7,
+p. 266, Jun. 2021.
+[15] A. Dal Pozzolo, O. Caelen, Y .-A. Le Borgne, S. Waterschoot, and G.
+Bontempi, ‘‘Learned lessons in credit card fraud detection from a prac-
+titioner perspective,’’ Expert Syst. Appl., vol. 41, no. 10, pp. 4915–4928,
+Aug. 2014.
+[16] I. D. Mienye and T. G. Swart, ‘‘A hybrid deep learning approach
+with generative adversarial network for credit card fraud detection,’’
+Technologies, vol. 12, no. 10, p. 186, Oct. 2024.
+[17] S. El Kafhali and M. Tayebi, ‘‘Generative adversarial neural networks
+based oversampling technique for imbalanced credit card dataset,’’ inProc.
+6th SLAAI Int. Conf. Artif. Intell. (SLAAI-ICAI), Dec. 2022, pp. 1–5.
+[18] H. Du, L. Lv, H. Wang, and A. Guo, ‘‘A novel method for detecting
+credit card fraud problems,’’ PLoS ONE, vol. 19, no. 3, Mar. 2024,
+Art. no. e0294537.
+[19] U. Fiore, A. De Santis, F. Perla, P . Zanetti, and F. Palmieri, ‘‘Using
+generative adversarial networks for improving classification effectiveness
+in credit card fraud detection,’’ Inf. Sci., vol. 479, pp. 448–455, Apr. 2019.
+[20] A. Singh and A. Jain, ‘‘An efficient credit card fraud detection approach
+using cost-sensitive weak learner with imbalanced dataset,’’ Comput.
+Intell., vol. 38, no. 6, pp. 2035–2055, Dec. 2022.
+[21] S. Elshaar and S. Sadaoui, ‘‘Cost-sensitive semi-supervised classification
+for fraud applications,’’ in Proc. Int. Conf. Agents Artif. Intell. Cham,
+Switzerland: Springer, 2020, pp. 173–187.
+[22] A. C. Bahnsen, D. Aouada, and B. Ottersten, ‘‘Example-dependent cost-
+sensitive logistic regression for credit scoring,’’ in Proc. 13th Int. Conf.
+Mach. Learn. Appl., Dec. 2014, pp. 263–269.
+[23] T. A. Olowookere and O. S. Adewale, ‘‘A framework for detecting
+credit card fraud with cost-sensitive meta-learning ensemble approach,’’
+Scientific Afr ., vol. 8, Jul. 2020, Art. no. e00464.
+[24] M. Tayebi and S. El Kafhali, ‘‘Credit card fraud detection based on
+hyperparameters? Optimization using the differential evolution,’’Int. J. Inf.
+Secur . Privacy, vol. 16, no. 1, pp. 1–21, Nov. 2022.
+[25] M. Tayebi and S. El Kafhali, ‘‘Combining autoencoders and deep learning
+for effective fraud detection in credit card transactions,’’Oper . Res. F orum,
+vol. 6, no. 1, p. 8, Jan. 2025.
+[26] A. D. Pozzolo, O. Caelen, R. A. Johnson, and G. Bontempi, ‘‘Calibrating
+probability with undersampling for unbalanced classification,’’ in Proc.
+IEEE Symp. Ser . Comput. Intell., Dec. 2015, pp. 159–166.
+[27] L. C. M. Liaw, S. C. Tan, P . Y . Goh, and C. P . Lim, ‘‘A histogram SMOTE-
+based sampling algorithm with incremental learning for imbalanced data
+classification,’’ Inf. Sci., vol. 686, Jan. 2025, Art. no. 121193.
+[28] M. Imani, A. Beikmohammadi, and H. R. Arabnia, ‘‘Comprehensive
+analysis of random forest and XGBoost performance with SMOTE,
+ADASYN, and GNUS under varying imbalance levels,’’ Technologies,
+vol. 13, no. 3, p. 88, Feb. 2025.
+[29] C. Hu, R. Deng, X. Hu, M. He, H. Zhao, and X. Jiang, ‘‘An automatic
+methodology for lithology identification in a tight sandstone reservoir
+using a bidirectional long short-term memory network combined with
+borderline-SMOTE,’’ Acta Geophysica, vol. 73, no. 3, pp. 2319–2335,
+Dec. 2024.
+[30] F. Omer Albasheer, R. Ramesh Haibatti, M. Agarwal, and S. Y eob Nam,
+‘‘A novel IDS based on Jaya optimizer and smote-ENN for cyberattacks
+detection,’’ IEEE Access, vol. 12, pp. 101506–101527, 2024.
+[31] R. Zaimi, M. Hafidi, and M. Lamia, ‘‘A deep learning mechanism to
+detect phishing URLs using the permutation importance method and
+SMOTE-tomek link,’’ J. Supercomput., vol. 80, no. 12, pp. 17159–17191,
+Aug. 2024.
+[32] X. Y ang, X. Xu, Y . Wang, S. Liu, X. Bai, L. Jing, J. Ma, and J. Huang,
+‘‘The fault diagnosis of a plunger pump based on the SMOTE + tomek
+link and dual-channel feature fusion,’’ Appl. Sci., vol. 14, no. 11, p. 4785,
+May 2024.
+[33] I. D. Mienye and N. Jere, ‘‘A survey of decision trees: Concepts, algo-
+rithms, and applications,’’ IEEE Access, vol. 12, pp. 86716–86727, 2024.
+[34] S. Hakkal and A. A. Lahcen, ‘‘XGBoost to enhance learner perfor-
+mance prediction,’’ Comput. Education: Artif. Intell., vol. 7, Dec. 2024,
+Art. no. 100254.
+[35] A. Asselman, M. Khaldi, and S. Aammou, ‘‘Enhancing the prediction of
+student performance based on the machine learning XGBoost algorithm,’’
+Interact. Learn. Environments, vol. 31, no. 6, pp. 3360–3379, Aug. 2023.
+[36] H. Y ang, Z. Chen, H. Y ang, and M. Tian, ‘‘Predicting coronary heart
+disease using an improved LightGBM model: Performance analysis and
+comparison,’’ IEEE Access, vol. 11, pp. 23366–23380, 2023.
+[37] H. Aly, A. K. Al-Ali, and P . N. Suganthan, ‘‘Boosted multilayer feed-
+forward neural network with multiple output layers,’’ Pattern Recognit.,
+vol. 156, Dec. 2024, Art. no. 110740.
+[38] O. O. Umeonwuka, B. S. Adejumobi, and T. Shongwe, ‘‘An XGBoost
+machine learning technique for RF energy harvesting prediction in IP-
+enabled IoT devices,’’ in Proc. IEEE 20th Int. Conf. Smart Technol.
+(EUROCON), Jul. 2023, pp. 562–567.
+[39] M. Desai and M. Shah, ‘‘An anatomization on breast cancer detection
+and diagnosis employing multi-layer perceptron neural network (MLP)
+and convolutional neural network (CNN),’’ Clin. eHealth, vol. 4,
+pp. 1–11, Jan. 2021.
+[40] O. O. Umeonwuka, B. S. Adejumobi, and T. Shongwe, ‘‘Deep learning-
+assisted energy prediction modeling for energy harvesting in wireless
+cognitive radio devices,’’ IEEE Access, vol. 12, pp. 8700–8720, 2024.
+[41] D. A. Kumar, ‘‘Logistic regression,’’ in Encyclopedia of Mathematical
+Geosciences. Cham, Switzerland: Springer, 2023, pp. 756–759.
+[42] I. D. Mienye and T. G. Swart, ‘‘Deep autoencoder neural networks: A
+comprehensive review and new perspectives,’’ Arch. Comput. Methods
+Eng., vol. 32, no. 7, pp. 1–20, Oct. 2025.
+[43] A. Swift, R. Heale, and A. Twycross, ‘‘What are sensitivity and
+specificity?’’ Evidence Based Nursing, vol. 23, no. 1, pp. 2–4, Jan. 2020.
+[44] D. Thoai Phan, ‘‘Reduce computational complexity for continuous wavelet
+transform in acoustic recognition using hop size,’’ in Proc. Int. Symp.
+Electron. Telecommun. (ISETC), Nov. 2024, pp. 1–4.
+[45] D. T. Phan, A. Jakob, and M. Purat, ‘‘Comparison performance of
+spectrogram and scalogram as input of acoustic recognition task,’’ in
+Proc. Future Inf. Commun. Conf. Cham, Switzerland: Springer, 2024,
+pp. 660–673.
+EMMANUEL ILEBERI received the B.Sc. degree
+in information technology engineering and the
+M.Sc. degree in telecommunications systems and
+computer network engineering from Belarusian
+State University of Informatics and Radioelec-
+tronics, Minsk, Belarus, in 2017 and 2018,
+respectively, and the Ph.D. degree in electrical
+and electronic engineering from the University
+of Johannesburg, South Africa, in 2023. He is
+currently a Postdoctoral Fellow with the Depart-
+ment of Electrical and Electronic Engineering, Faculty of Electrical and
+Electronics Engineering Science, University of Johannesburg. His research
+interests include machine learning, deep learning, and credit card fraud
+detection.
+YANXIA SUN (Senior Member, IEEE) received
+the D.Tech. degree in electrical engineering from
+Tshwane University of Technology, South Africa,
+and the Ph.D. degree in computer science from
+University Paris-EST Créteil, France, in 2012.
+She is currently a Professor with the Department
+of Electrical and Electronic Engineering Science,
+University of Johannesburg, South Africa. Her
+research interests include renewable energy, evo-
+lutionary optimization, neural networks, nonlinear
+dynamics, and control systems.
+202664 VOLUME 13, 2025

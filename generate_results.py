@@ -56,13 +56,8 @@ METRIC_COLS = ["Accuracy", "Specificity", "Sensitivity", "F1", "TCS", "ACM", "AU
 
 # ─── Parallel worker ────────────────────────────────────────────────────────
 
-def _run_one(model_name, sampler_name, seed, data, bench):
-    """Single experiment worker — runs in a separate process."""
-    tgt = None
-    bk = bench.get((model_name, sampler_name))
-    if bk:
-        tgt = bk.get("Sensitivity")
-
+def _run_one(model_name, sampler_name, seed, data):
+    """Single experiment worker — standard evaluation without threshold gaming."""
     try:
         res = evaluate_single_combination(
             model_name=model_name,
@@ -70,7 +65,7 @@ def _run_one(model_name, sampler_name, seed, data, bench):
             data=data,
             random_state=seed,
             threshold=None,
-            target_sensitivity=tgt,
+            parallel_mode=False,
         )
         res["_status"] = "ok"
     except Exception as e:
@@ -303,14 +298,16 @@ def main():
 
         print(f"\n({model_idx}/{len(MODEL_ORDER)}) Starting {model} ({len(model_tasks)} runs)...")
         t_model_start = time.time()
-
-        for idx, (m, s, seed) in enumerate(model_tasks, 1):
-            t_run_start = time.time()
-            res = _run_one(m, s, seed, data, bench)
-            run_dur = time.time() - t_run_start
-
+        for (m, s, seed) in model_tasks:
+            t_run = time.time()
+            res = _run_one(m, s, seed, data)
+            dur = time.time() - t_run
             if res.get("_status") == "ok":
                 all_records.append(res)
+                sens_val = res.get("Sensitivity", 0.0)
+                f1_val = res.get("F1", 0.0)
+                print(f"  {res['Model']:18s} | {res['Sampler'][:25]:<25} | seed={res['RandomState']:<4} | "
+                      f"Sens={sens_val:.3f} | F1={f1_val:.3f} | ({dur:.1f}s)")
                 # Incremental write to CSV
                 df_runs = pd.DataFrame(all_records)
                 save_cols = [c for c in df_runs.columns if c != "_status"]
@@ -319,13 +316,8 @@ def main():
                 df_mean = df_runs.groupby(["Model", "Sampler"])[METRIC_COLS].mean().reset_index()
                 df_mean.to_csv(mean_path, index=False)
                 _save_tables(df_mean, bench)
-
-                sens_val = res.get("Sensitivity", 0.0)
-                f1_val = res.get("F1", 0.0)
-                print(f"  [{idx}/{len(model_tasks)}] {m} | {s[:25]:<25} | seed={seed:<4} | "
-                      f"Sens={sens_val:.3f} | F1={f1_val:.3f} | ({run_dur:.1f}s)")
             else:
-                print(f"  [{idx}/{len(model_tasks)}] ERROR in {m} + {s} (seed={seed}): {res.get('_status')}")
+                print(f"  ERROR: {res.get('_status')}")
 
         t_model_dur = time.time() - t_model_start
         print(f"  --> Completed {model} in {t_model_dur:.1f}s")
