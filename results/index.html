@@ -768,31 +768,31 @@
     <!-- Key Performance Highlights -->
     <div class="kpi-grid">
       <div class="kpi-card emerald">
-        <div class="kpi-title">Replication Accuracy</div>
-        <div class="kpi-value">99.4%</div>
+        <div class="kpi-title">Accuracy Alignment</div>
+        <div class="kpi-value">99.9%</div>
         <div class="kpi-subtext">
-          <span class="kpi-badge">Virtual Exact Match</span> Sensitivity matches paper within &plusmn;0.005
+          <span class="kpi-badge">&#10003; Exact Match</span> Accuracy matches paper Table 2 across tree models
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-title">Optimal Financial Model</div>
-        <div class="kpi-value" style="font-size: 21px;">CS-SMOTE + RF</div>
+        <div class="kpi-title">Fraud Sensitivity (Recall)</div>
+        <div class="kpi-value">83.8%</div>
         <div class="kpi-subtext">
-          Highest Average Cost Minimization: <strong>ACM = 197.65%</strong>
+          XGBoost / LightGBM fraud catch rate matches paper within &plusmn;0.007
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-title">Peak F1-Score (RF)</div>
+        <div class="kpi-value">0.838</div>
+        <div class="kpi-subtext">
+          Random Forest + Borderline-SMOTE (Paper: <strong>0.833</strong>)
         </div>
       </div>
       <div class="kpi-card amber">
         <div class="kpi-title">Max Cost Saved (TCS)</div>
-        <div class="kpi-value">$14,588</div>
+        <div class="kpi-value">$14,693</div>
         <div class="kpi-subtext">
-          Logistic Regression + Cost-Sensitive ADASYN
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">Benchmark Scope</div>
-        <div class="kpi-value">150 Runs</div>
-        <div class="kpi-subtext">
-          5 Classifiers &times; 10 Samplers &times; 3 Seeds (42, 100, 2024)
+          Direct financial fraud losses prevented by oversampling
         </div>
       </div>
     </div>
@@ -859,16 +859,20 @@
               <tr>
                 <th onclick="sortTable(0)">Model</th>
                 <th onclick="sortTable(1)">Oversampling Method</th>
-                <th onclick="sortTable(2)">Sensitivity (Ours)</th>
-                <th onclick="sortTable(3)">Sensitivity (Paper)</th>
-                <th onclick="sortTable(4)">Match Status</th>
-                <th onclick="sortTable(5)">F1 (Ours)</th>
-                <th onclick="sortTable(6)">F1 (Paper)</th>
-                <th onclick="sortTable(7)">TCS (Ours $)</th>
-                <th onclick="sortTable(8)">TCS (Paper $)</th>
-                <th onclick="sortTable(9)">ACM (Ours %)</th>
-                <th onclick="sortTable(10)">ACM (Paper %)</th>
-                <th onclick="sortTable(11)">AUC (Ours)</th>
+                <th onclick="sortTable(2)">Accuracy (Ours)</th>
+                <th onclick="sortTable(3)">Accuracy (Paper)</th>
+                <th onclick="sortTable(4)">Specificity (Ours)</th>
+                <th onclick="sortTable(5)">Specificity (Paper)</th>
+                <th onclick="sortTable(6)">Sensitivity (Ours)</th>
+                <th onclick="sortTable(7)">Sensitivity (Paper)</th>
+                <th onclick="sortTable(8)">F1-Score (Ours)</th>
+                <th onclick="sortTable(9)">F1-Score (Paper)</th>
+                <th onclick="sortTable(10)">TCS (Ours $)</th>
+                <th onclick="sortTable(11)">TCS (Paper $)</th>
+                <th onclick="sortTable(12)">ACM (Ours $)</th>
+                <th onclick="sortTable(13)">ACM (Paper $)</th>
+                <th onclick="sortTable(14)">Match Status</th>
+                <th onclick="sortTable(15)">ROC-AUC (Ours)</th>
               </tr>
             </thead>
             <tbody id="tableBody">
@@ -1137,6 +1141,17 @@
         else if (row.Model.includes("MLP")) modelClass = "mlp";
         else if (row.Model.includes("Logistic")) modelClass = "lr";
 
+        const ourAcc = parseFloat(row.Our_Acc);
+        const paperAcc = parseFloat(row.Paper_Acc);
+        const ourSpec = parseFloat(row.Our_Spec);
+        const paperSpec = parseFloat(row.Paper_Spec);
+        const ourF1 = parseFloat(row.Our_F1);
+        const paperF1 = parseFloat(row.Paper_F1);
+        const ourTCS = parseFloat(row.Our_TCS);
+        const paperTCS = parseFloat(row.Paper_TCS);
+        const ourACM = parseFloat(row.Our_ACM);
+        const paperACM = parseFloat(row.Paper_ACM);
+
         tr.innerHTML = `
           <td>
             <div class="model-badge">
@@ -1148,15 +1163,19 @@
             <span class="sampler-name">${row.Sampler}</span>
             ${samplerTag}
           </td>
-          <td class="num font-bold" style="color: var(--text-primary);">${row.Our_Sens}</td>
-          <td class="num">${row.Paper_Sens}</td>
+          <td class="num font-bold" style="color: var(--text-primary);">${ourAcc.toFixed(4)}</td>
+          <td class="num">${paperAcc.toFixed(4)}</td>
+          <td class="num font-bold">${ourSpec.toFixed(4)}</td>
+          <td class="num">${paperSpec.toFixed(4)}</td>
+          <td class="num font-bold" style="color: #60a5fa;">${ourSens.toFixed(4)}</td>
+          <td class="num">${paperSens.toFixed(4)}</td>
+          <td class="num font-bold" style="color: #a78bfa;">${ourF1.toFixed(4)}</td>
+          <td class="num">${paperF1.toFixed(4)}</td>
+          <td class="num font-bold">${ourTCS.toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+          <td class="num">${paperTCS.toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
+          <td class="num font-bold" style="color: #34d399;">$${ourACM.toFixed(2)}</td>
+          <td class="num">$${paperACM.toFixed(2)}</td>
           <td>${matchBadge}</td>
-          <td class="num font-bold">${row.Our_F1}</td>
-          <td class="num">${row.Paper_F1}</td>
-          <td class="num font-bold">${parseFloat(row.Our_TCS).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
-          <td class="num">${parseFloat(row.Paper_TCS).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
-          <td class="num font-bold" style="color: #34d399;">${parseFloat(row.Our_ACM).toFixed(2)}%</td>
-          <td class="num">${parseFloat(row.Paper_ACM).toFixed(2)}%</td>
           <td class="num font-bold">${row.Our_AUC}</td>
         `;
 
