@@ -1,10 +1,11 @@
 from src.config import MODEL_CONFIGS
 
 
-def get_model(model_name, random_state=42):
+def get_model(model_name, random_state=42, parallel_mode=False):
     """
     Factory function instantiating classifiers with exact Table 1 hyperparameter configurations.
-    Uses lazy importing so individual classifiers can be used independently.
+    If parallel_mode=True, internal n_jobs is forced to 1 to avoid nested parallelism
+    contention when running inside a joblib parallel context.
     """
     cfg = MODEL_CONFIGS.get(model_name)
     if cfg is None:
@@ -15,6 +16,8 @@ def get_model(model_name, random_state=42):
     params = cfg.copy()
     if "random_state" in params:
         params["random_state"] = random_state
+    if parallel_mode and "n_jobs" in params:
+        params["n_jobs"] = 1   # avoid nested parallelism
 
     if model_name == "Random Forest":
         from sklearn.ensemble import RandomForestClassifier

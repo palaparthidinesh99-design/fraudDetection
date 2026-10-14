@@ -18,3 +18,5 @@ data/*.csv
 
 # Temporary files
 *.log
+data/.resampled_cache/
+*.npz
